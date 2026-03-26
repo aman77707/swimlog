@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwimLog — Track Your Classes</title>
+  <meta name="description" content="Track your swimming class attendance with daily reminders and a live leaderboard.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Animated background bubbles -->
+  <div class="bubbles" aria-hidden="true">
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+    <span class="bubble"></span>
+  </div>
+
+  <div class="app">
+
+    <!-- ── Header ─────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">🏊</span>
+          <div class="logo-text">
+            <h1>SwimLog</h1>
+            <p>Track your swimming journey</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-test-email" id="testEmailBtn" aria-label="Send test emails" style="display:none">
+            📧 Send Test Emails
+          </button>
+          <button class="btn-register" id="openRegister" aria-label="Register">
+            + Join the Squad
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Stats Bar ───────────────────────────────────────────── -->
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-num" id="totalUsers">—</span>
+        <span class="stat-label">Swimmers</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="totalClasses">—</span>
+        <span class="stat-label">Classes Logged</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="topSwimmer">—</span>
+        <span class="stat-label">Leader</span>
+      </div>
+    </div>
+
+    <!-- ── Main Content ────────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- Podium — top 3 -->
+      <section class="podium-section" id="podiumSection" style="display:none" aria-label="Top swimmers">
+        <div class="podium" id="podium"></div>
+      </section>
+
+      <!-- Full leaderboard -->
+      <section class="leaderboard-section">
+        <h2 class="section-title">
+          <span class="section-title-icon">🏅</span> Leaderboard
+        </h2>
+        <div class="leaderboard" id="leaderboard" role="list" aria-live="polite">
+          <div class="loading">
+            <span class="spinner"></span> Loading swimmers…
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ── Registration Modal ─────────────────────────────────────── -->
+  <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <button class="modal-close" id="closeModal" aria-label="Close">✕</button>
+
+      <div class="modal-header">
+        <span class="modal-icon">👋</span>
+        <h2 id="modalTitle">Join the Squad</h2>
+        <p>Register to start tracking your swim classes</p>
+      </div>
+
+      <form id="registerForm" novalidate>
+        <div class="form-group">
+          <label for="reg-name">Full Name <span class="required">*</span></label>
+          <input type="text" id="reg-name" name="name" placeholder="Michael Phelps" autocomplete="name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="reg-email">Email Address <span class="required">*</span></label>
+          <input type="email" id="reg-email" name="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="reg-phone">Phone Number <span class="required">*</span></label>
+          <input type="tel" id="reg-phone" name="phone" placeholder="+91 98765 43210" autocomplete="tel" required>
+        </div>
+
+        <div class="form-group">
+          <label for="reg-photo">
+            Profile Photo <span class="optional">(optional)</span>
+          </label>
+          <div class="photo-upload" id="photoUpload" role="button" tabindex="0" aria-label="Upload profile photo">
+            <input type="file" id="reg-photo" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" hidden aria-hidden="true">
+            <div class="photo-placeholder" id="photoPlaceholder">
+              <span class="photo-icon">📷</span>
+              <p>Click or drag to upload</p>
+              <small>JPEG, PNG, GIF, WebP — max 5 MB</small>
+            </div>
+            <img id="photoPreview" alt="Your photo preview" style="display:none">
+          </div>
+        </div>
+
+        <div class="form-error" id="formError" role="alert" style="display:none"></div>
+
+        <button type="submit" class="btn-submit" id="submitBtn">
+          <span id="submitLabel">Join SwimLog</span>
+        </button>
+
+        <p class="form-note">Max 10 swimmers total. Daily reminders sent at 9am IST.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal-overlay" id="profileOverlay" role="dialog" aria-modal="true" aria-labelledby="profileName">
+    <div class="modal profile-modal">
+      <button class="modal-close" id="closeProfile" aria-label="Close">✕</button>
+      <div class="profile-header">
+        <div class="profile-avatar" id="profileAvatar"></div>
+        <div class="profile-meta">
+          <h2 id="profileName"></h2>
+          <p class="profile-email" id="profileEmail"></p>
+          <p class="profile-phone" id="profilePhone"></p>
+          <span class="profile-badge" id="profileBadge"></span>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="pstat">
+          <span class="pstat-num" id="profileCount">0</span>
+          <span class="pstat-label">Classes</span>
+        </div>
+        <div class="pstat">
+          <span class="pstat-num" id="profileStreak">0</span>
+          <span class="pstat-label">Day streak</span>
+        </div>
+        <div class="pstat">
+          <span class="pstat-num" id="profileSince">–</span>
+          <span class="pstat-label">Member since</span>
+        </div>
+      </div>
+      <div class="activity-section">
+        <div class="ag-top-row">
+          <h3 class="activity-title">Swimming Activity <span id="activityYear"></span></h3>
+          <div class="activity-legend">
+            <span>Less</span>
+            <span class="legend-dot ld-0"></span>
+            <span class="legend-dot ld-1"></span>
+            <span class="legend-dot ld-4"></span>
+            <span>More</span>
+          </div>
+        </div>
+        <div class="ag-scroll-area">
+          <div class="activity-months" id="activityMonths"></div>
+          <div class="activity-graph" id="activityGraph"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
