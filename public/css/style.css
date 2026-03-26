@@ -114,9 +114,15 @@ body {
   font-weight: 500;
 }
 
-.btn-register {
-  background: white;
-  color: var(--blue);
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-register,
+.btn-test-email {
   border: none;
   padding: 12px 22px;
   border-radius: 12px;
@@ -127,14 +133,33 @@ body {
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 4px 18px rgba(0,0,0,0.2);
   letter-spacing: 0.1px;
+  font-family: inherit;
 }
 
+.btn-register {
+  background: white;
+  color: var(--blue);
+}
+
+.btn-test-email {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1.5px solid rgba(255,255,255,0.35);
+}
+
+.btn-test-email:hover:not(:disabled),
 .btn-register:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 28px rgba(0,0,0,0.28);
 }
 
-.btn-register:active { transform: translateY(0); }
+.btn-test-email:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-register:active,
+.btn-test-email:active { transform: translateY(0); }
 
 /* ─── Stats bar ───────────────────────────────────────────────────────────── */
 .stats-bar {
@@ -693,7 +718,8 @@ body {
 
   .header-inner { flex-direction: column; align-items: flex-start; gap: 14px; }
 
-  .btn-register { width: 100%; text-align: center; }
+  .header-actions { width: 100%; }
+  .btn-register, .btn-test-email { width: 100%; text-align: center; }
 
   .stats-bar { padding: 18px 16px; }
   .stat-num { font-size: 22px; }

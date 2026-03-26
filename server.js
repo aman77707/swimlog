@@ -145,6 +145,18 @@ app.get('/confirm/:token', (req, res) => {
   }
 });
 
+// ─── Test: send emails NOW (no auth — REMOVE before going to prod) ──────────────
+
+app.post('/api/send-test-emails', async (req, res) => {
+  console.warn('[TEST] /api/send-test-emails called — remove this endpoint before production');
+  try {
+    const count = await sendDailyEmails();
+    res.json({ success: true, message: `Sent ${count} email(s)` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Admin: manually trigger daily emails (protected by ADMIN_KEY) ─────────────
 
 app.post('/api/trigger-emails', async (req, res) => {

@@ -110,6 +110,27 @@ function avatar(u, cls) {
   return `<div class="${cls}"><span>${initials(u.name)}</span></div>`;
 }
 
+// ─── Test Email Button ────────────────────────────────────────────────────────
+document.getElementById('testEmailBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('testEmailBtn');
+  btn.disabled = true;
+  btn.textContent = '📨 Sending…';
+  try {
+    const res  = await fetch('/api/send-test-emails', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Emails sent!', 'success');
+    } else {
+      showToast(data.error || 'Failed to send emails.', 'error');
+    }
+  } catch {
+    showToast('Network error — could not send emails.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📧 Send Test Emails';
+  }
+});
+
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 document.getElementById('openRegister').addEventListener('click', openModal);
 document.getElementById('closeModal').addEventListener('click', closeModal);
