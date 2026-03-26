@@ -84,6 +84,30 @@ module.exports = {
     return db.prepare('SELECT * FROM email_tokens WHERE token = ?').get(token);
   },
 
+  // Returns array of date strings (YYYY-MM-DD) for days the user confirmed a swim
+  getSwimHistory(userId) {
+    return db.prepare(`
+      SELECT date(used_at) AS day
+      FROM email_tokens
+      WHERE user_id = ? AND used = 1 AND used_at IS NOT NULL
+      GROUP BY date(used_at)
+      ORDER BY day ASC
+    `).all(userId).map(r => r.day);
+  },
+
+  deleteUser(id) {
+    // Delete tokens first (foreign key), then the user, then their photo path for cleanup
+    const user = this.getUserById(id);
+    db.prepare('DELETE FROM email_tokens WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    return user; // return so caller can unlink photo
+  },
+
+  resetSwimCount(id) {
+    db.prepare('UPDATE users SET swim_count = 0, last_swim = NULL WHERE id = ?').run(id);
+    db.prepare('DELETE FROM email_tokens WHERE user_id = ?').run(id);
+  },
+
   markTokenUsed(token) {
     db.prepare(
       "UPDATE email_tokens SET used = 1, used_at = datetime('now') WHERE token = ?"

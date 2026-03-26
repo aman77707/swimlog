@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwimLog — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --deep: #03045e; --blue: #0077b6; --aqua: #00b4d8;
+      --red:  #dc2626; --amber: #d97706; --green: #059669;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f6ff;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      color: #1e293b;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, var(--deep), var(--blue));
+      padding: 22px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-logo { display: flex; align-items: center; gap: 12px; }
+    .header-logo span { font-size: 36px; }
+    .header-logo h1 { color: white; font-size: 22px; font-weight: 900; }
+    .header-logo p  { color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
+    .header-back {
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .header-back:hover { background: rgba(255,255,255,0.12); }
+
+    /* ── Auth gate ── */
+    #authGate {
+      max-width: 400px;
+      margin: 80px auto;
+      background: white;
+      border-radius: 20px;
+      padding: 44px 40px;
+      box-shadow: 0 8px 36px rgba(3,4,94,0.12);
+      text-align: center;
+    }
+    #authGate h2 { font-size: 22px; font-weight: 900; color: var(--deep); margin-bottom: 8px; }
+    #authGate p  { font-size: 13px; color: #94a3b8; margin-bottom: 26px; }
+    #keyInput {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: monospace;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    #keyInput:focus { border-color: var(--blue); }
+    #authErr { color: var(--red); font-size: 13px; margin-bottom: 10px; min-height: 18px; }
+
+    /* ── Main ── */
+    .main { max-width: 900px; margin: 0 auto; padding: 36px 16px 60px; }
+
+    /* Stats bar */
+    .stats { display: flex; gap: 14px; margin-bottom: 32px; flex-wrap: wrap; }
+    .stat-card {
+      background: white;
+      border-radius: 14px;
+      padding: 18px 24px;
+      flex: 1;
+      min-width: 140px;
+      box-shadow: 0 2px 12px rgba(3,4,94,0.07);
+      border-left: 4px solid var(--blue);
+    }
+    .stat-card .n { font-size: 30px; font-weight: 900; color: var(--blue); line-height: 1; }
+    .stat-card .l { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 4px; font-weight: 600; }
+
+    /* Section title */
+    .section-title {
+      font-size: 14px; font-weight: 800; color: #475569;
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px;
+    }
+
+    /* Table */
+    .table-wrap { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 14px rgba(3,4,94,0.08); }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #94a3b8;
+      padding: 14px 18px;
+      background: #f8faff;
+      border-bottom: 1px solid #e8f0fb;
+    }
+    td { padding: 14px 18px; border-bottom: 1px solid #f1f5fb; font-size: 14px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafcff; }
+
+    .user-cell { display: flex; align-items: center; gap: 12px; }
+    .u-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--aqua));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; color: white;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .u-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .u-name  { font-weight: 700; color: #1e293b; }
+    .u-email { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+    .count-badge {
+      display: inline-block;
+      background: #eff6ff; color: var(--blue);
+      font-weight: 700; font-size: 13px;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    /* Action buttons */
+    .action-btns { display: flex; gap: 8px; }
+    .btn-reset, .btn-delete {
+      border: none; border-radius: 8px; padding: 7px 14px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: opacity 0.2s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .btn-reset  { background: #fef3c7; color: var(--amber); }
+    .btn-delete { background: #fee2e2; color: var(--red); }
+    .btn-reset:hover, .btn-delete:hover { opacity: 0.75; transform: translateY(-1px); }
+    .btn-reset:disabled, .btn-delete:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Button styles */
+    .btn {
+      display: inline-block; padding: 12px 22px;
+      background: linear-gradient(135deg, var(--deep), var(--blue));
+      color: white; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,119,182,0.3); }
+
+    /* Empty */
+    .empty { text-align: center; padding: 44px; color: #94a3b8; font-size: 14px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 20px;
+      color: white; padding: 13px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600; z-index: 200;
+      transform: translateY(80px); opacity: 0;
+      transition: transform 0.3s cubic-bezier(.175,.885,.32,1.275), opacity 0.25s;
+      pointer-events: none; box-shadow: 0 6px 22px rgba(0,0,0,0.25);
+    }
+    .toast.show  { transform: translateY(0); opacity: 1; }
+    .toast.ok    { background: #059669; }
+    .toast.err   { background: var(--red); }
+
+    /* Confirm dialog */
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(3,4,94,0.55);
+      backdrop-filter: blur(6px); display: flex; align-items: center;
+      justify-content: center; z-index: 100; padding: 16px;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .confirm-overlay.show { opacity: 1; pointer-events: all; }
+    .confirm-box {
+      background: white; border-radius: 18px; padding: 36px 32px;
+      max-width: 380px; width: 100%; text-align: center;
+      transform: scale(0.9); transition: transform 0.25s cubic-bezier(.175,.885,.32,1.275);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .confirm-overlay.show .confirm-box { transform: scale(1); }
+    .confirm-icon { font-size: 46px; margin-bottom: 12px; display: block; }
+    .confirm-box h3 { font-size: 19px; font-weight: 900; color: var(--deep); margin-bottom: 8px; }
+    .confirm-box p  { font-size: 13px; color: #64748b; margin-bottom: 28px; line-height: 1.5; }
+    .confirm-btns { display: flex; gap: 10px; justify-content: center; }
+    .cbtn {
+      padding: 11px 24px; border-radius: 9px; border: none;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: opacity 0.2s;
+    }
+    .cbtn-cancel  { background: #f1f5f9; color: #475569; }
+    .cbtn-confirm { background: var(--red); color: white; }
+    .cbtn:hover   { opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">
+    <span>🏊</span>
+    <div>
+      <h1>SwimLog Admin</h1>
+      <p>Manage your squad</p>
+    </div>
+  </div>
+  <a href="/" class="header-back">← Back to leaderboard</a>
+</header>
+
+<!-- Auth gate (shown until valid key entered) -->
+<div id="authGate">
+  <h2>🔐 Admin Login</h2>
+  <p>Enter your admin key to continue</p>
+  <input type="password" id="keyInput" placeholder="Admin key…" autocomplete="current-password">
+  <div id="authErr"></div>
+  <button class="btn" id="authBtn" style="width:100%">Unlock</button>
+</div>
+
+<!-- Main admin panel (hidden until auth) -->
+<div class="main" id="adminPanel" style="display:none">
+  <div class="stats" id="statsBar"></div>
+  <p class="section-title">All Swimmers</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Swimmer</th>
+          <th>Phone</th>
+          <th>Classes</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="userTable"></tbody>
+    </table>
+    <div class="empty" id="emptyMsg" style="display:none">No swimmers registered yet.</div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <span class="confirm-icon" id="confirmIcon"></span>
+    <h3 id="confirmTitle"></h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-btns">
+      <button class="cbtn cbtn-cancel" id="confirmCancel">Cancel</button>
+      <button class="cbtn cbtn-confirm" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let ADMIN_KEY = '';
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const keyInput   = document.getElementById('keyInput');
+  const authErr    = document.getElementById('authErr');
+
+  document.getElementById('authBtn').addEventListener('click', tryAuth);
+  keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
+
+  async function tryAuth() {
+    const key = keyInput.value.trim();
+    if (!key) { authErr.textContent = 'Please enter the admin key.'; return; }
+    authErr.textContent = '';
+    // Test with a real admin API call
+    const res = await fetch('/api/admin/users', { headers: { 'x-api-key': key } });
+    if (res.status === 403) { authErr.textContent = 'Invalid key. Try again.'; return; }
+    ADMIN_KEY = key;
+    document.getElementById('authGate').style.display  = 'none';
+    document.getElementById('adminPanel').style.display = '';
+    const users = await res.json();
+    renderPanel(users);
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderPanel(users) {
+    // Stats
+    const total = users.reduce((s, u) => s + u.swim_count, 0);
+    document.getElementById('statsBar').innerHTML = `
+      <div class="stat-card"><div class="n">${users.length}<span style="font-size:16px">/10</span></div><div class="l">Swimmers</div></div>
+      <div class="stat-card"><div class="n">${total}</div><div class="l">Total Classes</div></div>
+      <div class="stat-card"><div class="n">${10 - users.length}</div><div class="l">Spots Left</div></div>
+    `;
+
+    const tbody = document.getElementById('userTable');
+    const empty = document.getElementById('emptyMsg');
+
+    if (users.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = users.map(u => `
+      <tr data-id="${u.id}">
+        <td>
+          <div class="user-cell">
+            <div class="u-avatar">
+              ${u.photo_path
+                ? `<img src="${esc(u.photo_path)}" alt="${esc(u.name)}">`
+                : initials(u.name)}
+            </div>
+            <div>
+              <div class="u-name">${esc(u.name)}</div>
+              <div class="u-email">${esc(u.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td>${esc(u.phone)}</td>
+        <td><span class="count-badge">${u.swim_count}</span></td>
+        <td>${new Date(u.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</td>
+        <td>
+          <div class="action-btns">
+            <button class="btn-reset"  data-id="${u.id}" data-name="${esc(u.name)}">↺ Reset count</button>
+            <button class="btn-delete" data-id="${u.id}" data-name="${esc(u.name)}">✕ Remove</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.btn-reset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { id, name } = btn.dataset;
+        showConfirm(
+          '↺', 'Reset swim count?',
+          `This will set ${name}'s class count back to 0 and clear their swim history.`,
+          async () => {
+            btn.disabled = true;
+            const ok = await adminPost(`/api/admin/users/${id}/reset`);
+            if (ok) { showToast('Count reset to 0.', 'ok'); await refresh(); }
+            else     { btn.disabled = false; }
+          }
+        );
+      });
+    });
+
+    tbody.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { id, name } = btn.dataset;
+        showConfirm(
+          '🗑️', `Remove ${name}?`,
+          'This will permanently delete the swimmer and all their data. This cannot be undone.',
+          async () => {
+            btn.disabled = true;
+            const ok = await adminDelete(`/api/admin/users/${id}`);
+            if (ok) { showToast(`${name} removed.`, 'ok'); await refresh(); }
+            else     { btn.disabled = false; }
+          }
+        );
+      });
+    });
+  }
+
+  async function refresh() {
+    const res = await fetch('/api/admin/users', { headers: { 'x-api-key': ADMIN_KEY } });
+    renderPanel(await res.json());
+  }
+
+  async function adminPost(url) {
+    const res = await fetch(url, { method: 'POST', headers: { 'x-api-key': ADMIN_KEY } });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error.', 'err'); return false; }
+    return true;
+  }
+
+  async function adminDelete(url) {
+    const res = await fetch(url, { method: 'DELETE', headers: { 'x-api-key': ADMIN_KEY } });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error.', 'err'); return false; }
+    return true;
+  }
+
+  // ── Confirm dialog ────────────────────────────────────────────────────────
+  let confirmCallback = null;
+
+  function showConfirm(icon, title, msg, cb) {
+    document.getElementById('confirmIcon').textContent  = icon;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent   = msg;
+    confirmCallback = cb;
+    document.getElementById('confirmOverlay').classList.add('show');
+  }
+
+  document.getElementById('confirmOk').addEventListener('click', () => {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    if (confirmCallback) confirmCallback();
+  });
+
+  document.getElementById('confirmCancel').addEventListener('click', () => {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    confirmCallback = null;
+  });
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 350); }, 3500);
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function initials(name) {
+    return String(name||'?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  }
+</script>
+</body>
+</html>

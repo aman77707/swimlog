@@ -35,7 +35,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <button class="btn-test-email" id="testEmailBtn" aria-label="Send test emails">
+          <button class="btn-test-email" id="testEmailBtn" aria-label="Send test emails" style="display:none">
             📧 Send Test Emails
           </button>
           <button class="btn-register" id="openRegister" aria-label="Register">
@@ -136,6 +136,52 @@
 
         <p class="form-note">Max 10 swimmers total. Daily reminders sent at 9am IST.</p>
       </form>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal-overlay" id="profileOverlay" role="dialog" aria-modal="true" aria-labelledby="profileName">
+    <div class="modal profile-modal">
+      <button class="modal-close" id="closeProfile" aria-label="Close">✕</button>
+      <div class="profile-header">
+        <div class="profile-avatar" id="profileAvatar"></div>
+        <div class="profile-meta">
+          <h2 id="profileName"></h2>
+          <p class="profile-email" id="profileEmail"></p>
+          <p class="profile-phone" id="profilePhone"></p>
+          <span class="profile-badge" id="profileBadge"></span>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="pstat">
+          <span class="pstat-num" id="profileCount">0</span>
+          <span class="pstat-label">Classes</span>
+        </div>
+        <div class="pstat">
+          <span class="pstat-num" id="profileStreak">0</span>
+          <span class="pstat-label">Day streak</span>
+        </div>
+        <div class="pstat">
+          <span class="pstat-num" id="profileSince">–</span>
+          <span class="pstat-label">Member since</span>
+        </div>
+      </div>
+      <div class="activity-section">
+        <div class="ag-top-row">
+          <h3 class="activity-title">Swimming Activity <span id="activityYear"></span></h3>
+          <div class="activity-legend">
+            <span>Less</span>
+            <span class="legend-dot ld-0"></span>
+            <span class="legend-dot ld-1"></span>
+            <span class="legend-dot ld-4"></span>
+            <span>More</span>
+          </div>
+        </div>
+        <div class="ag-scroll-area">
+          <div class="activity-months" id="activityMonths"></div>
+          <div class="activity-graph" id="activityGraph"></div>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -58,6 +58,30 @@ function esc(str) {
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
 
+app.get('/api/user/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    const user = db.getUserById(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const history = db.getSwimHistory(id);
+    // Never expose password-like fields — only safe profile fields
+    res.json({
+      id:         user.id,
+      name:       user.name,
+      email:      user.email,
+      phone:      user.phone,
+      photo_path: user.photo_path,
+      swim_count: user.swim_count,
+      last_swim:  user.last_swim,
+      created_at: user.created_at,
+      history,
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 app.get('/api/leaderboard', (_req, res) => {
   try {
     res.json(db.getLeaderboard());
@@ -143,6 +167,61 @@ app.get('/confirm/:token', (req, res) => {
     console.error('Confirm error:', err);
     res.status(500).send(confirmPage('error', null, 0));
   }
+});
+
+// ─── Admin API (protected by ADMIN_KEY) ───────────────────────────────────────
+
+function requireAdmin(req, res, next) {
+  const key = process.env.ADMIN_KEY;
+  if (!key || req.headers['x-api-key'] !== key) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.get('/api/admin/users', requireAdmin, (_req, res) => {
+  try {
+    res.json(db.getAllUsers());
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    const user = db.deleteUser(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    // Clean up uploaded photo from disk
+    if (user.photo_path) {
+      const photoFile = path.join(__dirname, 'public', user.photo_path);
+      try { fs.unlinkSync(photoFile); } catch {}
+    }
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+app.post('/api/admin/users/:id/reset', requireAdmin, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    if (!db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
+    db.resetSwimCount(id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to reset count' });
+  }
+});
+
+// Serve admin page — only if ADMIN_KEY is set
+app.get('/admin', (req, res) => {
+  if (!process.env.ADMIN_KEY) {
+    return res.status(403).send('<h2>Admin is disabled. Set ADMIN_KEY in your environment.</h2>');
+  }
+  res.sendFile(path.join(__dirname, 'public/admin.html'));
 });
 
 // ─── Test: send emails NOW (no auth — REMOVE before going to prod) ──────────────
