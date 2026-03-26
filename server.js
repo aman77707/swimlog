@@ -58,14 +58,13 @@ function esc(str) {
 
 // ─── API Routes ────────────────────────────────────────────────────────────────
 
-app.get('/api/user/:id', (req, res) => {
+app.get('/api/user/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
-    const user = db.getUserById(id);
+    const user = await db.getUserById(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const history = db.getSwimHistory(id);
-    // Never expose password-like fields — only safe profile fields
+    const history = await db.getSwimHistory(id);
     res.json({
       id:         user.id,
       name:       user.name,
@@ -82,15 +81,15 @@ app.get('/api/user/:id', (req, res) => {
   }
 });
 
-app.get('/api/leaderboard', (_req, res) => {
+app.get('/api/leaderboard', async (_req, res) => {
   try {
-    res.json(db.getLeaderboard());
+    res.json(await db.getLeaderboard());
   } catch {
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
   }
 });
 
-app.post('/api/register', upload.single('photo'), (req, res) => {
+app.post('/api/register', upload.single('photo'), async (req, res) => {
   const cleanup = () => {
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch {}
@@ -110,18 +109,19 @@ app.post('/api/register', upload.single('photo'), (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
 
-    if (db.getUserCount() >= 10) {
+    const existingUser = await db.getUserByEmail(email.trim().toLowerCase());
+    if (existingUser) {
+      cleanup();
+      return res.status(409).json({ error: 'This email is already registered. Please use a different email.' });
+    }
+
+    if (await db.getUserCount() >= 10) {
       cleanup();
       return res.status(400).json({ error: 'The squad is full! Maximum 10 swimmers allowed.' });
     }
 
-    if (db.getUserByEmail(email.trim().toLowerCase())) {
-      cleanup();
-      return res.status(400).json({ error: 'This email is already registered.' });
-    }
-
     const photoPath = req.file ? `/uploads/${req.file.filename}` : null;
-    const user = db.createUser(
+    const user = await db.createUser(
       name.trim(),
       email.trim().toLowerCase(),
       phone.trim(),
@@ -130,15 +130,15 @@ app.post('/api/register', upload.single('photo'), (req, res) => {
 
     res.json({ success: true, user });
   } catch (err) {
-    console.error('Register error:', err);
     cleanup();
-    res.status(500).json({ error: 'Registration failed. Please try again.' });
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Failed to register user.' });
   }
 });
 
 // ─── Email Confirmation ────────────────────────────────────────────────────────
 
-app.get('/confirm/:token', (req, res) => {
+app.get('/confirm/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -147,20 +147,20 @@ app.get('/confirm/:token', (req, res) => {
       return res.status(400).send(confirmPage('error', null, 0));
     }
 
-    const emailToken = db.getEmailToken(token);
+    const emailToken = await db.getEmailToken(token);
     if (!emailToken) {
       return res.status(404).send(confirmPage('error', null, 0));
     }
 
-    const user = db.getUserById(emailToken.user_id);
+    const user = await db.getUserById(emailToken.user_id);
 
     if (emailToken.used) {
       return res.send(confirmPage('duplicate', user, user.swim_count));
     }
 
-    db.markTokenUsed(token);
-    db.incrementSwimCount(emailToken.user_id);
-    const updated = db.getUserById(emailToken.user_id);
+    await db.markTokenUsed(token);
+    await db.incrementSwimCount(emailToken.user_id);
+    const updated = await db.getUserById(emailToken.user_id);
 
     return res.send(confirmPage('success', updated, updated.swim_count));
   } catch (err) {
@@ -179,19 +179,19 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-app.get('/api/admin/users', requireAdmin, (_req, res) => {
+app.get('/api/admin/users', requireAdmin, async (_req, res) => {
   try {
-    res.json(db.getAllUsers());
+    res.json(await db.getAllUsers());
   } catch {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
-app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
-    const user = db.deleteUser(id);
+    const user = await db.deleteUser(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     // Clean up uploaded photo from disk
     if (user.photo_path) {
@@ -204,12 +204,12 @@ app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
   }
 });
 
-app.post('/api/admin/users/:id/reset', requireAdmin, (req, res) => {
+app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
-    if (!db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
-    db.resetSwimCount(id);
+    if (!await db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
+    await db.resetSwimCount(id);
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Failed to reset count' });

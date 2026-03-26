@@ -1,36 +1,41 @@
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
 const path = require('path');
 const fs = require('fs');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../data/swimlog.db');
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT    NOT NULL,
-    email       TEXT    UNIQUE NOT NULL,
-    phone       TEXT    NOT NULL,
-    photo_path  TEXT,
-    swim_count  INTEGER DEFAULT 0,
-    last_swim   DATETIME,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS email_tokens (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id      INTEGER NOT NULL REFERENCES users(id),
-    token        TEXT    UNIQUE NOT NULL,
-    window_start DATETIME NOT NULL,
-    used         INTEGER DEFAULT 0,
-    used_at      DATETIME,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+let _db;
+async function getDb() {
+  if (_db) return _db;
+  _db = await open({ filename: DB_PATH, driver: sqlite3.Database });
+  await _db.run('PRAGMA journal_mode = WAL');
+  await _db.run('PRAGMA foreign_keys = ON');
+  await _db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT    NOT NULL,
+      email       TEXT    UNIQUE NOT NULL,
+      phone       TEXT    NOT NULL,
+      photo_path  TEXT,
+      swim_count  INTEGER DEFAULT 0,
+      last_swim   DATETIME,
+      created_at  DATETIME DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS email_tokens (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id      INTEGER NOT NULL,
+      token        TEXT    UNIQUE NOT NULL,
+      window_start DATETIME NOT NULL,
+      used         INTEGER DEFAULT 0,
+      used_at      DATETIME,
+      created_at   DATETIME DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+  return _db;
+}
 
 // 9am IST = 03:30 UTC
 function getCurrentWindowStart() {
@@ -42,82 +47,101 @@ function getCurrentWindowStart() {
 }
 
 module.exports = {
-  getLeaderboard() {
-    return db.prepare(`
+  init: getDb,
+
+  async getLeaderboard() {
+    const db = await getDb();
+    return db.all(`
       SELECT id, name, email, phone, photo_path, swim_count, last_swim, created_at
       FROM users
-      ORDER BY swim_count DESC, name ASC
-    `).all();
+      ORDER BY swim_count DESC, last_swim DESC, name ASC
+    `);
   },
 
-  getUserCount() {
-    return db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
+  async getUserCount() {
+    const db = await getDb();
+    const row = await db.get('SELECT COUNT(*) AS c FROM users');
+    return row.c;
   },
 
-  getUserByEmail(email) {
-    return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  async getUserByEmail(email) {
+    const db = await getDb();
+    return db.get('SELECT * FROM users WHERE email = ?', email);
   },
 
-  getUserById(id) {
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  async getUserById(id) {
+    const db = await getDb();
+    return db.get('SELECT * FROM users WHERE id = ?', id);
   },
 
-  getAllUsers() {
-    return db.prepare('SELECT * FROM users').all();
+  async getAllUsers() {
+    const db = await getDb();
+    return db.all('SELECT * FROM users');
   },
 
-  createUser(name, email, phone, photoPath) {
-    const { lastInsertRowid } = db.prepare(
-      'INSERT INTO users (name, email, phone, photo_path) VALUES (?, ?, ?, ?)'
-    ).run(name, email, phone, photoPath);
-    return this.getUserById(lastInsertRowid);
+  async createUser(name, email, phone, photoPath) {
+    const db = await getDb();
+    const result = await db.run(
+      'INSERT INTO users (name, email, phone, photo_path) VALUES (?, ?, ?, ?)',
+      name, email, phone, photoPath
+    );
+    return this.getUserById(result.lastID);
   },
 
-  createEmailToken(userId, token) {
+  async createEmailToken(userId, token) {
+    const db = await getDb();
     const windowStart = getCurrentWindowStart().toISOString();
-    db.prepare(
-      'INSERT INTO email_tokens (user_id, token, window_start) VALUES (?, ?, ?)'
-    ).run(userId, token, windowStart);
+    await db.run(
+      'INSERT INTO email_tokens (user_id, token, window_start) VALUES (?, ?, ?)',
+      userId, token, windowStart
+    );
   },
 
-  getEmailToken(token) {
-    return db.prepare('SELECT * FROM email_tokens WHERE token = ?').get(token);
+  async getEmailToken(token) {
+    const db = await getDb();
+    return db.get('SELECT * FROM email_tokens WHERE token = ?', token);
   },
 
-  // Returns array of date strings (YYYY-MM-DD) for days the user confirmed a swim
-  getSwimHistory(userId) {
-    return db.prepare(`
+  async getSwimHistory(userId) {
+    const db = await getDb();
+    const rows = await db.all(`
       SELECT date(used_at) AS day
       FROM email_tokens
       WHERE user_id = ? AND used = 1 AND used_at IS NOT NULL
       GROUP BY date(used_at)
       ORDER BY day ASC
-    `).all(userId).map(r => r.day);
+    `, userId);
+    return rows.map(r => r.day);
   },
 
-  deleteUser(id) {
-    // Delete tokens first (foreign key), then the user, then their photo path for cleanup
-    const user = this.getUserById(id);
-    db.prepare('DELETE FROM email_tokens WHERE user_id = ?').run(id);
-    db.prepare('DELETE FROM users WHERE id = ?').run(id);
-    return user; // return so caller can unlink photo
+  async deleteUser(id) {
+    const db = await getDb();
+    const user = await this.getUserById(id);
+    await db.run('DELETE FROM email_tokens WHERE user_id = ?', id);
+    await db.run('DELETE FROM users WHERE id = ?', id);
+    return user;
   },
 
-  resetSwimCount(id) {
-    db.prepare('UPDATE users SET swim_count = 0, last_swim = NULL WHERE id = ?').run(id);
-    db.prepare('DELETE FROM email_tokens WHERE user_id = ?').run(id);
+  async resetSwimCount(id) {
+    const db = await getDb();
+    await db.run('UPDATE users SET swim_count = 0, last_swim = NULL WHERE id = ?', id);
+    await db.run('DELETE FROM email_tokens WHERE user_id = ?', id);
   },
 
-  markTokenUsed(token) {
-    db.prepare(
-      "UPDATE email_tokens SET used = 1, used_at = datetime('now') WHERE token = ?"
-    ).run(token);
+  async markTokenUsed(token) {
+    const db = await getDb();
+    await db.run(
+      "UPDATE email_tokens SET used = 1, used_at = datetime('now') WHERE token = ?",
+      token
+    );
   },
 
-  incrementSwimCount(userId) {
-    db.prepare(
-      "UPDATE users SET swim_count = swim_count + 1, last_swim = datetime('now') WHERE id = ?"
-    ).run(userId);
+  async incrementSwimCount(userId) {
+    const db = await getDb();
+    await db.run(
+      "UPDATE users SET swim_count = swim_count + 1, last_swim = datetime('now') WHERE id = ?",
+      userId
+    );
   },
 
   getCurrentWindowStart,
