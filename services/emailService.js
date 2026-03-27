@@ -26,6 +26,14 @@ async function sendSwimReminder(user, confirmUrl) {
   const count = user.swim_count;
   const milestone = count >= 30 ? '🏆 Absolute legend!' : count >= 20 ? '🌟 Elite swimmer!' : count >= 10 ? '⭐ Great progress!' : count >= 5 ? '💪 Building momentum!' : 'Keep going! 🚀';
 
+  const now = new Date();
+  const dayName = now.toLocaleDateString('en-IN', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+  const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  // Format day with ordinal suffix: "27th March 2026"
+  const day = now.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' });
+  const ordinal = (n) => { const s = ['th','st','nd','rd']; const v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); };
+  const formattedDate = `${dayName}, ${ordinal(parseInt(day))} ${now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })}`;
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +63,8 @@ async function sendSwimReminder(user, confirmUrl) {
                 Good morning, ${firstName}! 🌅
               </h2>
               <p style="color:#555;font-size:16px;line-height:1.7;margin:0 0 32px;">
-                Did you make a splash today? Let us know if you<br>attended your swimming class this morning!
+                Did you attend your swimming class today,<br>
+                <strong style="color:#0077b6;">${formattedDate}</strong>?
               </p>
 
               <!-- CTA -->
@@ -104,7 +113,7 @@ async function sendSwimReminder(user, confirmUrl) {
     to: user.email,
     subject: `🌊 Did you swim today, ${firstName}?`,
     html,
-    text: `Good morning ${user.name}!\n\nDid you swim today? Click here to confirm:\n${confirmUrl}\n\nYou've completed ${count} swim class${count !== 1 ? 'es' : ''} so far.\n\n— SwimLog`,
+    text: `Good morning ${user.name}!\n\nDid you attend your swimming class today, ${formattedDate}? Click here to confirm:\n${confirmUrl}\n\nYou've completed ${count} swim class${count !== 1 ? 'es' : ''} so far.\n\n— SwimLog`,
   });
 }
 

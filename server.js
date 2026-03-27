@@ -181,7 +181,7 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/admin/users', requireAdmin, async (_req, res) => {
   try {
-    res.json(await db.getAllUsers());
+    res.json(await db.getAllUsersWithEmailStats());
   } catch {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
@@ -213,6 +213,34 @@ app.post('/api/admin/users/:id/reset', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Failed to reset count' });
+  }
+});
+
+app.post('/api/admin/users/:id/decrement', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    if (!await db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
+    await db.decrementSwimCount(id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to decrement count' });
+  }
+});
+
+app.post('/api/admin/users/:id/send-email', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    const user = await db.getUserById(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const token = uuidv4();
+    await db.createEmailToken(user.id, token);
+    await emailService.sendSwimReminder(user, `${APP_URL}/confirm/${token}`);
+    await db.markEmailSent(token);
+    res.json({ success: true, message: `Reminder sent to ${user.email}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -261,13 +289,14 @@ cron.schedule('30 3 * * *', () => {
 }, { timezone: 'UTC' });
 
 async function sendDailyEmails() {
-  const users = db.getAllUsers();
+  const users = await db.getAllUsers();
   let sent = 0;
   for (const user of users) {
     const token = uuidv4();
-    db.createEmailToken(user.id, token);
+    await db.createEmailToken(user.id, token);
     try {
       await emailService.sendSwimReminder(user, `${APP_URL}/confirm/${token}`);
+      await db.markEmailSent(token);
       sent++;
     } catch (err) {
       console.error(`Email failed for ${user.email}: ${err.message}`);

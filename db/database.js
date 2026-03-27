@@ -30,10 +30,13 @@ async function getDb() {
       window_start DATETIME NOT NULL,
       used         INTEGER DEFAULT 0,
       used_at      DATETIME,
+      email_sent   INTEGER DEFAULT 0,
       created_at   DATETIME DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+  // Migration: add email_sent column if it doesn't exist yet (for existing DBs)
+  try { await _db.run('ALTER TABLE email_tokens ADD COLUMN email_sent INTEGER DEFAULT 0'); } catch {}
   return _db;
 }
 
@@ -102,6 +105,24 @@ module.exports = {
     return db.get('SELECT * FROM email_tokens WHERE token = ?', token);
   },
 
+  async markEmailSent(token) {
+    const db = await getDb();
+    await db.run('UPDATE email_tokens SET email_sent = 1 WHERE token = ?', token);
+  },
+
+  async getAllUsersWithEmailStats() {
+    const db = await getDb();
+    return db.all(`
+      SELECT u.*,
+        COALESCE((
+          SELECT COUNT(*) FROM email_tokens e
+          WHERE e.user_id = u.id AND e.email_sent = 1
+            AND date(e.created_at) = date('now')
+        ), 0) AS today_email_count
+      FROM users u
+    `);
+  },
+
   async getSwimHistory(userId) {
     const db = await getDb();
     const rows = await db.all(`
@@ -125,7 +146,14 @@ module.exports = {
   async resetSwimCount(id) {
     const db = await getDb();
     await db.run('UPDATE users SET swim_count = 0, last_swim = NULL WHERE id = ?', id);
-    await db.run('DELETE FROM email_tokens WHERE user_id = ?', id);
+  },
+
+  async decrementSwimCount(id) {
+    const db = await getDb();
+    await db.run(
+      'UPDATE users SET swim_count = MAX(0, swim_count - 1) WHERE id = ?',
+      id
+    );
   },
 
   async markTokenUsed(token) {
