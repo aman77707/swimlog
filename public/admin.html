@@ -131,18 +131,33 @@
       padding: 4px 12px; border-radius: 20px;
     }
 
-    /* Action buttons */
-    .action-btns { display: flex; gap: 8px; }
-    .btn-reset, .btn-delete {
-      border: none; border-radius: 8px; padding: 7px 14px;
-      font-size: 12px; font-weight: 700; cursor: pointer;
-      font-family: inherit; transition: opacity 0.2s, transform 0.15s;
-      white-space: nowrap;
+    /* Action buttons — 2×2 grid so all four are always visible */
+    .action-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      min-width: 200px;
     }
-    .btn-reset  { background: #fef3c7; color: var(--amber); }
-    .btn-delete { background: #fee2e2; color: var(--red); }
-    .btn-reset:hover, .btn-delete:hover { opacity: 0.75; transform: translateY(-1px); }
-    .btn-reset:disabled, .btn-delete:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .action-btn {
+      border: none; border-radius: 8px; padding: 7px 10px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: opacity 0.2s, transform 0.15s;
+      white-space: nowrap; text-align: center;
+    }
+    .action-btn:hover   { opacity: 0.75; transform: translateY(-1px); }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-send-user  { background: #d1fae5; color: #065f46; }
+    .btn-decrement  { background: #fff7ed; color: #c2410c; }
+    .btn-reset      { background: #fef3c7; color: var(--amber); }
+    .btn-delete     { background: #fee2e2; color: var(--red); }
+
+    .sent-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+    }
+    .sent-badge.sent-yes { background: #d1fae5; color: #065f46; }
+    .sent-badge.sent-no  { background: #f1f5f9; color: #94a3b8; }
 
     /* Button styles */
     .btn {
@@ -156,6 +171,20 @@
 
     /* Empty */
     .empty { text-align: center; padding: 44px; color: #94a3b8; font-size: 14px; }
+
+    /* Section row */
+    .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+    .section-row .section-title { margin-bottom: 0; }
+    .btn-email {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #065f46, #059669);
+      color: white; border: none; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    }
+    .btn-email:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(5,150,105,0.35); }
+    .btn-email:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
     /* Toast */
     .toast {
@@ -224,7 +253,10 @@
 <!-- Main admin panel (hidden until auth) -->
 <div class="main" id="adminPanel" style="display:none">
   <div class="stats" id="statsBar"></div>
-  <p class="section-title">All Swimmers</p>
+  <div class="section-row">
+    <p class="section-title">All Swimmers</p>
+    <button class="btn-email" id="sendEmailBtn" onclick="triggerEmails()">📧 Send Reminder Emails</button>
+  </div>
   <div class="table-wrap">
     <table>
       <thead>
@@ -232,6 +264,7 @@
           <th>Swimmer</th>
           <th>Phone</th>
           <th>Classes</th>
+          <th>Sent Today</th>
           <th>Joined</th>
           <th>Actions</th>
         </tr>
@@ -316,26 +349,74 @@
         </td>
         <td>${esc(u.phone)}</td>
         <td><span class="count-badge">${u.swim_count}</span></td>
+        <td>
+          ${u.today_email_count > 0
+            ? `<span class="sent-badge sent-yes">✉️ ${u.today_email_count} sent</span>`
+            : `<span class="sent-badge sent-no">— none</span>`}
+        </td>
         <td>${new Date(u.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</td>
         <td>
           <div class="action-btns">
-            <button class="btn-reset"  data-id="${u.id}" data-name="${esc(u.name)}">↺ Reset count</button>
-            <button class="btn-delete" data-id="${u.id}" data-name="${esc(u.name)}">✕ Remove</button>
+            <button class="action-btn btn-send-user" data-id="${u.id}" data-name="${esc(u.name)}" data-sent="${u.today_email_count}">📧 Send email</button>
+            <button class="action-btn btn-decrement" data-id="${u.id}" data-name="${esc(u.name)}">−1 Class</button>
+            <button class="action-btn btn-reset"     data-id="${u.id}" data-name="${esc(u.name)}">↺ Reset classes</button>
+            <button class="action-btn btn-delete"    data-id="${u.id}" data-name="${esc(u.name)}">✕ Remove</button>
           </div>
         </td>
       </tr>
     `).join('');
 
+    tbody.querySelectorAll('.btn-send-user').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { id, name, sent } = btn.dataset;
+        if (parseInt(sent) > 0) {
+          showConfirm(
+            '📧', `Resend email to ${name}?`,
+            `A reminder was already sent today. Send another one anyway?`,
+            async () => {
+              btn.disabled = true;
+              const ok = await adminPost(`/api/admin/users/${id}/send-email`);
+              if (ok) { showToast(`Reminder sent to ${name}.`, 'ok'); await refresh(); }
+              else     { btn.disabled = false; }
+            }
+          );
+        } else {
+          btn.disabled = true;
+          adminPost(`/api/admin/users/${id}/send-email`)
+            .then(ok => {
+              if (ok) { showToast(`Reminder sent to ${name}.`, 'ok'); refresh(); }
+              else     { btn.disabled = false; }
+            });
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-decrement').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { id, name } = btn.dataset;
+        showConfirm(
+          '−', `Deduct one class from ${name}?`,
+          `This will subtract 1 from ${name}'s class count. Email delivery history is not affected.`,
+          async () => {
+            btn.disabled = true;
+            const ok = await adminPost(`/api/admin/users/${id}/decrement`);
+            if (ok) { showToast('Class count decremented by 1.', 'ok'); await refresh(); }
+            else     { btn.disabled = false; }
+          }
+        );
+      });
+    });
+
     tbody.querySelectorAll('.btn-reset').forEach(btn => {
       btn.addEventListener('click', () => {
         const { id, name } = btn.dataset;
         showConfirm(
-          '↺', 'Reset swim count?',
-          `This will set ${name}'s class count back to 0 and clear their swim history.`,
+          '↺', 'Reset class count to zero?',
+          `This will set ${name}'s class count back to 0. Email delivery history is not affected.`,
           async () => {
             btn.disabled = true;
             const ok = await adminPost(`/api/admin/users/${id}/reset`);
-            if (ok) { showToast('Count reset to 0.', 'ok'); await refresh(); }
+            if (ok) { showToast('Class count reset to 0.', 'ok'); await refresh(); }
             else     { btn.disabled = false; }
           }
         );
@@ -405,6 +486,30 @@
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add('show'));
     setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 350); }, 3500);
+  }
+
+  // ── Trigger reminder emails ───────────────────────────────────────────────
+  async function triggerEmails() {
+    const btn = document.getElementById('sendEmailBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending…';
+    try {
+      const res = await fetch('/api/trigger-emails', {
+        method: 'POST',
+        headers: { 'x-api-key': ADMIN_KEY }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Emails sent!', 'ok');
+      } else {
+        showToast(data.error || 'Failed to send emails.', 'err');
+      }
+    } catch (err) {
+      showToast('Network error. Please try again.', 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📧 Send Reminder Emails';
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
