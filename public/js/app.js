@@ -77,34 +77,53 @@ function renderRows(users) {
     return;
   }
 
-  const maxCount = users[0].swim_count || 1;
 
   elLeaderboard.innerHTML = users.map((u, i) => {
     const rank    = i + 1;
     const medal   = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
     const rankCls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-    const pct     = Math.max(4, Math.round((u.swim_count / maxCount) * 100));
-
     return `
       <div class="lb-row" role="listitem" style="animation-delay:${i * 40}ms" data-user-id="${u.id}">
         <span class="lb-rank ${rankCls}" aria-label="Rank ${rank}">${medal}</span>
         ${avatar(u, 'lb-avatar')}
         <div class="lb-info">
           <button class="lb-name lb-name-btn" data-user-id="${u.id}" title="View profile">${escHtml(u.name)}</button>
-          <div class="lb-progress-wrap" role="progressbar" aria-valuenow="${u.swim_count}" aria-valuemin="0" aria-valuemax="${maxCount}">
-            <div class="lb-progress-bar" style="width:${pct}%"></div>
-          </div>
         </div>
         <div class="lb-count">
           <span class="lb-count-num">${u.swim_count}</span>
           <span class="lb-count-label">class${u.swim_count !== 1 ? 'es' : ''}</span>
         </div>
+        <button class="btn-log-swim" data-user-id="${u.id}" data-user-name="${escHtml(u.name)}" title="Log a swim class for ${escHtml(u.name)}" aria-label="Log swim for ${escHtml(u.name)}">🏊 I swam!</button>
       </div>`;
   }).join('');
 
   // Attach click listeners to name buttons
   elLeaderboard.querySelectorAll('.lb-name-btn').forEach(btn => {
     btn.addEventListener('click', () => openProfile(parseInt(btn.dataset.userId, 10)));
+  });
+
+  // Attach click listeners to log-swim buttons
+  elLeaderboard.querySelectorAll('.btn-log-swim').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = parseInt(btn.dataset.userId, 10);
+      const name = btn.dataset.userName;
+      if (!confirm(`Log a swim class for ${name}?`)) return;
+      btn.disabled = true;
+      try {
+        const res  = await fetch(`/api/users/${id}/log-swim`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Great job, ${name}! 🏊 Class #${data.swim_count} logged.`, 'success');
+          await loadLeaderboard();
+        } else {
+          showToast(data.error || 'Could not log swim.', 'error');
+          btn.disabled = false;
+        }
+      } catch {
+        showToast('Network error — please try again.', 'error');
+        btn.disabled = false;
+      }
+    });
   });
 }
 

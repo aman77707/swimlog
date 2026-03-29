@@ -426,20 +426,6 @@ body {
 
 /* .lb-name replaced by .lb-name-btn */
 
-.lb-progress-wrap {
-  height: 5px;
-  background: #edf2f7;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.lb-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--blue), var(--aqua));
-  border-radius: 3px;
-  transition: width 1.2s ease;
-  min-width: 4px;
-}
 
 .lb-count {
   text-align: right;
@@ -461,6 +447,25 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* ─── Log swim button ──────────────────────────────────────────────────────── */
+.btn-log-swim {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 14px;
+  background: linear-gradient(135deg, #0077b6, #00b4d8);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: transform 0.18s, box-shadow 0.18s, opacity 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.30);
+}
+.btn-log-swim:hover   { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,119,182,0.45); }
+.btn-log-swim:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
 
 /* ─── Modal ───────────────────────────────────────────────────────────────── */
 .modal-overlay {
