@@ -131,12 +131,12 @@
       padding: 4px 12px; border-radius: 20px;
     }
 
-    /* Action buttons — 2×2 grid so all four are always visible */
+    /* Action buttons — 3-col grid so all five are clearly visible */
     .action-btns {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 6px;
-      min-width: 200px;
+      min-width: 260px;
     }
     .action-btn {
       border: none; border-radius: 8px; padding: 7px 10px;
@@ -147,6 +147,7 @@
     .action-btn:hover   { opacity: 0.75; transform: translateY(-1px); }
     .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
     .btn-send-user  { background: #d1fae5; color: #065f46; }
+    .btn-increment  { background: #eff6ff; color: #1d4ed8; }
     .btn-decrement  { background: #fff7ed; color: #c2410c; }
     .btn-reset      { background: #fef3c7; color: var(--amber); }
     .btn-delete     { background: #fee2e2; color: var(--red); }
@@ -358,6 +359,7 @@
         <td>
           <div class="action-btns">
             <button class="action-btn btn-send-user" data-id="${u.id}" data-name="${esc(u.name)}" data-sent="${u.today_email_count}">📧 Send email</button>
+            <button class="action-btn btn-increment" data-id="${u.id}" data-name="${esc(u.name)}">+1 Class</button>
             <button class="action-btn btn-decrement" data-id="${u.id}" data-name="${esc(u.name)}">−1 Class</button>
             <button class="action-btn btn-reset"     data-id="${u.id}" data-name="${esc(u.name)}">↺ Reset classes</button>
             <button class="action-btn btn-delete"    data-id="${u.id}" data-name="${esc(u.name)}">✕ Remove</button>
@@ -388,6 +390,18 @@
               else     { btn.disabled = false; }
             });
         }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-increment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const { id, name } = btn.dataset;
+        btn.disabled = true;
+        adminPost(`/api/admin/users/${id}/increment`)
+          .then(ok => {
+            if (ok) { showToast(`+1 class added for ${name}.`, 'ok'); refresh(); }
+            else     { btn.disabled = false; }
+          });
       });
     });
 

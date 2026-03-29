@@ -3,8 +3,19 @@ const { open } = require('sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../data/swimlog.db');
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+const DB_PATH =
+  process.env.NODE_ENV === 'production'
+    ? '/app/bkup/swimlog.db' // Railway volume( Should match the exact name as created in railway volume)
+    : './data/swimlog.db'; // Local development
+
+// Ensure the directory exists in production
+if (process.env.NODE_ENV === 'production') {
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    console.log(`Creating database directory: ${dbDir}`);
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+}
 
 let _db;
 async function getDb() {

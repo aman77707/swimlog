@@ -228,6 +228,33 @@ app.post('/api/admin/users/:id/decrement', requireAdmin, async (req, res) => {
   }
 });
 
+app.post('/api/admin/users/:id/increment', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    if (!await db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
+    await db.incrementSwimCount(id);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to increment count' });
+  }
+});
+
+// ─── Public: log a swim (no email token required) ────────────────────────────
+
+app.post('/api/users/:id/log-swim', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid id' });
+    if (!await db.getUserById(id)) return res.status(404).json({ error: 'User not found' });
+    await db.incrementSwimCount(id);
+    const updated = await db.getUserById(id);
+    res.json({ success: true, swim_count: updated.swim_count });
+  } catch {
+    res.status(500).json({ error: 'Failed to log swim' });
+  }
+});
+
 app.post('/api/admin/users/:id/send-email', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -279,14 +306,13 @@ app.post('/api/trigger-emails', async (req, res) => {
   }
 });
 
-// ─── Cron: 9:00 AM IST = 03:30 UTC ───────────────────────────────────────────
-
-cron.schedule('30 3 * * *', () => {
-  console.log('[CRON] Sending daily swim reminders...');
-  sendDailyEmails()
-    .then(n => console.log(`[CRON] Sent ${n} email(s)`))
-    .catch(err => console.error('[CRON] Error:', err.message));
-}, { timezone: 'UTC' });
+// ─── Cron: disabled (daily emails are triggered manually from the admin console) ─
+// cron.schedule('30 3 * * *', () => {
+//   console.log('[CRON] Sending daily swim reminders...');
+//   sendDailyEmails()
+//     .then(n => console.log(`[CRON] Sent ${n} email(s)`))
+//     .catch(err => console.error('[CRON] Error:', err.message));
+// }, { timezone: 'UTC' });
 
 async function sendDailyEmails() {
   const users = await db.getAllUsers();
@@ -376,7 +402,7 @@ function confirmPage(status, user, count) {
 
 app.listen(PORT, () => {
   console.log(`🏊  SwimLog running → http://localhost:${PORT}`);
-  console.log(`    Daily emails cron: 03:30 UTC (9:00 AM IST)`);
+  console.log(`    Daily emails cron: disabled (trigger manually from admin console)`);
   if (!process.env.SMTP_HOST) {
     console.warn('    ⚠️  SMTP not configured — emails will not send!');
   }
